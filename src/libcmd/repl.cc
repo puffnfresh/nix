@@ -138,12 +138,14 @@ void runNix(Path program, const Strings & args,
     auto subprocessEnv = getEnv();
     subprocessEnv["NIX_CONFIG"] = globalConfig.toKeyValue();
 
+#ifndef _WIN32 // TODO re-enable on Windows, once we can start processes.
     runProgram2(RunOptions {
         .program = settings.nixBinDir+ "/" + program,
         .args = args,
         .environment = subprocessEnv,
         .input = input,
     });
+#endif
 
     return;
 }
@@ -480,6 +482,7 @@ ProcessLineResult NixRepl::processLine(std::string line)
         reloadFiles();
     }
 
+#ifndef _WIN32 // TODO re-enable on Windows, once we can start processes.
     else if (command == ":e" || command == ":edit") {
         Value v;
         evalString(arg, v);
@@ -514,6 +517,7 @@ ProcessLineResult NixRepl::processLine(std::string line)
         state->resetFileCache();
         reloadFiles();
     }
+#endif
 
     else if (command == ":t") {
         Value v;

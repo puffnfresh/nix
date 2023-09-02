@@ -11,7 +11,6 @@
 #include "path-references.hh"
 #include "store-api.hh"
 #include "util.hh"
-#include "processes.hh"
 #include "value-to-json.hh"
 #include "value-to-xml.hh"
 #include "primops.hh"
@@ -28,7 +27,11 @@
 #include <algorithm>
 #include <cstring>
 #include <regex>
-#include <dlfcn.h>
+
+#ifndef _WIN32
+# include <dlfcn.h>
+# include "processes.hh"
+#endif
 
 #include <cmath>
 
@@ -331,6 +334,8 @@ static RegisterPrimOp primop_import({
     }
 });
 
+#ifndef _WIN32 // TODO implement via DLL loading on Windows
+
 /* Want reasonable symbol names, so extern C */
 /* !!! Should we pass the Pos or the file name too? */
 extern "C" typedef void (*ValueInitializer)(EvalState & state, Value & v);
@@ -402,6 +407,8 @@ void prim_exec(EvalState & state, const PosIdx pos, Value * * args, Value & v)
         throw;
     }
 }
+
+#endif
 
 /* Return a string representing the type of the expression. */
 static void prim_typeOf(EvalState & state, const PosIdx pos, Value * * args, Value & v)
@@ -4590,6 +4597,7 @@ void EvalState::createBaseEnv()
         )",
     });
 
+#ifndef _WIN32 // TODO implement on Windows
     // Miscellaneous
     if (evalSettings.enableNativeCode) {
         addPrimOp({
@@ -4603,6 +4611,7 @@ void EvalState::createBaseEnv()
             .fun = prim_exec,
         });
     }
+#endif
 
     addPrimOp({
         .name = "__traceVerbose",
