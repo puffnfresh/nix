@@ -334,6 +334,14 @@ endif
 fs = import('fs')
 
 prefix = get_option('prefix')
+
+if meson.is_cross_build()
+  cross_prefix = get_option('cross-prefix')
+  if cross_prefix != ''
+    prefix = cross_prefix
+  endif
+endif
+
 # For each of these paths, assume that it is relative to the prefix unless
 # it is already an absolute path (which is the default for store-dir, localstatedir, and log-dir).
 path_opts = [
@@ -362,12 +370,13 @@ foreach optname : path_opts
   else
     set_variable(varname, prefix / path)
   endif
+  message('@0@ @1@'.format(varname, get_variable(varname)))
 endforeach
 
 # sysconfdir doesn't get anything installed to directly, and is only used to
 # tell Nix where to look for nix.conf, so it doesn't get appended to prefix.
 sysconfdir = get_option('sysconfdir')
-if not fs.is_absolute(sysconfdir)
+if not fs.is_absolute(sysconfdir) and not meson.is_cross_build()
   sysconfdir = '/' / sysconfdir
 endif
 
