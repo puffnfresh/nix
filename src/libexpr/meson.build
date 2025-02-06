@@ -57,6 +57,7 @@ toml11 = dependency(
   'toml11',
   version : '>=3.7.0',
   method : 'cmake',
+  native: true,
   include_type: 'system',
 )
 deps_other += toml11
