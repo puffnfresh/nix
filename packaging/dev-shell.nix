@@ -67,6 +67,8 @@ pkgs.nixComponents.nix-util.overrideAttrs (
           cdToBuildDir
           ninjaInstallPhase
       }
+    '' + lib.optionalString stdenv.hostPlatform.isWindows ''
+      cp --no-preserve=mode ${pkgs.buildPackages.callPackage ./launch.nix { }} .vscode/launch.json
     '';
 
     # We use this shell with the local checkout, not unpackPhase.
@@ -124,7 +126,8 @@ pkgs.nixComponents.nix-util.overrideAttrs (
       ++ lib.optional (stdenv.cc.isClang && !stdenv.buildPlatform.isDarwin) pkgs.buildPackages.bear
       ++ lib.optional (stdenv.cc.isClang && stdenv.hostPlatform == stdenv.buildPlatform) (
         lib.hiPrio pkgs.buildPackages.clang-tools
-      );
+      )
+      ++ lib.optional stdenv.hostPlatform.isWindows pkgs.buildPackages.wine64Packages.minimal;
 
     buildInputs =
       attrs.buildInputs or [ ]
