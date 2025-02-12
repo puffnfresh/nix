@@ -131,10 +131,16 @@ std::string_view baseNameOf(std::string_view path)
 
 bool isInDir(std::string_view path, std::string_view dir)
 {
-    return path.substr(0, 1) == "/"
-        && path.substr(0, dir.size()) == dir
-        && path.size() >= dir.size() + 2
-        && path[dir.size()] == '/';
+    fs::path p(path);
+    fs::path d(dir);
+    auto it2 = d.begin();
+    bool lastEmpty = false;
+    for (auto it1 = p.begin(); it1 != p.end() && it2 != d.end(); ++it1, ++it2) {
+        if (lastEmpty) return false;
+        lastEmpty = (*it2).empty();
+        if (!lastEmpty && *it1 != *it2) return false;
+    }
+    return lastEmpty || it2 == d.end();
 }
 
 
