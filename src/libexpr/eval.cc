@@ -256,7 +256,7 @@ EvalState::EvalState(
                underlying directory available. This is necessary for
                instance if we're evaluating a file from the physical
                /nix/store while using a chroot store. */
-            auto accessor = getFSSourceAccessor();
+            auto accessor = makeFSSourceAccessor(std::filesystem::path { store->storeDir }.root_path());
 
             auto realStoreDir = dirOf(store->toRealPath(StorePath::dummy));
             if (settings.pureEval || store->storeDir != realStoreDir) {
