@@ -18,7 +18,6 @@ struct PosixSourceAccessor : virtual SourceAccessor
      */
     const std::filesystem::path root;
 
-    PosixSourceAccessor();
     PosixSourceAccessor(std::filesystem::path && root);
 
     /**

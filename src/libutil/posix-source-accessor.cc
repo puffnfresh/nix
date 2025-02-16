@@ -10,13 +10,10 @@ namespace nix {
 PosixSourceAccessor::PosixSourceAccessor(std::filesystem::path && argRoot)
     : root(std::move(argRoot))
 {
-    assert(root.empty() || root.is_absolute());
+    assert(root.is_absolute());
     displayPrefix = root.string();
 }
 
-PosixSourceAccessor::PosixSourceAccessor()
-    : PosixSourceAccessor(std::filesystem::path {})
-{ }
 
 SourcePath PosixSourceAccessor::createAtRoot(const std::filesystem::path & path)
 {
@@ -201,7 +198,10 @@ void PosixSourceAccessor::assertNoSymlinks(CanonPath path)
 
 ref<SourceAccessor> getFSSourceAccessor()
 {
-    static auto rootFS = make_ref<PosixSourceAccessor>();
+    // HACK: We need a root, so grab one, even if it has a good chance of being incorrect on Windows.
+    // TODO: Remove getFSSourceAccessor() and only use makeFSSourceAccessor(root)
+    auto root = std::filesystem::current_path().root_path();
+    static auto rootFS = make_ref<PosixSourceAccessor>(std::move(root));
     return rootFS;
 }
 
