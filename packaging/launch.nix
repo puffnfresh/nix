@@ -4,6 +4,7 @@
 , gdb
 , wine64Packages
 , writeText
+, writeScript
 }:
 
 let
@@ -30,7 +31,13 @@ let
           MIMode = "gdb";
           miDebuggerPath = "${lib.getBin gdb}/bin/${stdenv.targetPlatform.config}-gdb";
           miDebuggerServerAddress = "localhost:9939";
-          debugServerPath = lib.getExe' wine64Packages.minimal "winedbg";
+          debugServerPath = writeScript "nix-winedbg.sh" ''
+            #!/usr/bin/env bash
+            # cppdbg accepts "environment" and "envFile" but these seem
+            # to get passed to miDebuggerPath, and not debugServerPath!
+            unset NIX_STORE
+            exec ${lib.getExe' wine64Packages.minimal "winedbg"} "$@"
+          '';
           debugServerArgs = "--gdb --no-start --port 9939 ${program} \${input:args}";
 
           # HACK: I don't know why "target remote" doesn't work.
