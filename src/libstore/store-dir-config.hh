@@ -43,6 +43,8 @@ struct StoreDirConfig : public Config
 
     std::string printStorePath(const StorePath & path) const;
 
+    CanonPath canonStorePath(const StorePath & path) const;
+
     /**
      * Deprecated
      *
