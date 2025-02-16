@@ -123,7 +123,7 @@ std::string StoreDirConfig::printStorePath(const StorePath & path) const
 CanonPath StoreDirConfig::canonStorePath(const StorePath & path) const
 {
     auto relativeStoreDir = std::filesystem::path(storeDir).relative_path();
-    return CanonPath((relativeStoreDir.string() + "/").append(path.to_string()));
+    return CanonPath(relativeStoreDir.string()) / path.to_string();
 }
 
 PathSet StoreDirConfig::printStorePathSet(const StorePathSet & paths) const
