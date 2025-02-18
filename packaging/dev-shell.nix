@@ -30,45 +30,47 @@ pkgs.nixComponents.nix-util.overrideAttrs (
     name = attrs.pname;
 
     installFlags = "sysconfdir=$(out)/etc";
-    shellHook = ''
-      PATH=$prefix/bin:$PATH
-      unset PYTHONPATH
-      export MANPATH=$out/share/man:$MANPATH
+    shellHook =
+      ''
+        PATH=$prefix/bin:$PATH
+        unset PYTHONPATH
+        export MANPATH=$out/share/man:$MANPATH
 
-      # Make bash completion work.
-      XDG_DATA_DIRS+=:$out/share
+        # Make bash completion work.
+        XDG_DATA_DIRS+=:$out/share
 
-      # Make the default phases do the right thing.
-      # FIXME: this wouldn't be needed if the ninja package set buildPhase() instead of $buildPhase.
-      # FIXME: mesonConfigurePhase shouldn't cd to the build directory. It would be better to pass '-C <dir>' to ninja.
+        # Make the default phases do the right thing.
+        # FIXME: this wouldn't be needed if the ninja package set buildPhase() instead of $buildPhase.
+        # FIXME: mesonConfigurePhase shouldn't cd to the build directory. It would be better to pass '-C <dir>' to ninja.
 
-      cdToBuildDir() {
-          if [[ ! -e build.ninja ]]; then
-              cd build
-          fi
-      }
+        cdToBuildDir() {
+            if [[ ! -e build.ninja ]]; then
+                cd build
+            fi
+        }
 
-      configurePhase() {
-          mesonConfigurePhase
-      }
+        configurePhase() {
+            mesonConfigurePhase
+        }
 
-      buildPhase() {
-          cdToBuildDir
-          ninjaBuildPhase
-      }
+        buildPhase() {
+            cdToBuildDir
+            ninjaBuildPhase
+        }
 
-      checkPhase() {
-          cdToBuildDir
-          mesonCheckPhase
-      }
+        checkPhase() {
+            cdToBuildDir
+            mesonCheckPhase
+        }
 
-      installPhase() {
-          cdToBuildDir
-          ninjaInstallPhase
-      }
-    '' + lib.optionalString stdenv.hostPlatform.isWindows ''
-      cp --no-preserve=mode ${pkgs.buildPackages.callPackage ./launch.nix { }} .vscode/launch.json
-    '';
+        installPhase() {
+            cdToBuildDir
+            ninjaInstallPhase
+        }
+      ''
+      + lib.optionalString stdenv.hostPlatform.isWindows ''
+        cp --no-preserve=mode ${pkgs.buildPackages.callPackage ./launch.nix { }} .vscode/launch.json
+      '';
 
     # We use this shell with the local checkout, not unpackPhase.
     src = null;
@@ -119,7 +121,9 @@ pkgs.nixComponents.nix-util.overrideAttrs (
         modular.pre-commit.settings.package
         (pkgs.writeScriptBin "pre-commit-hooks-install" modular.pre-commit.settings.installationScript)
       ]
-      ++ lib.optional (!stdenv.hostPlatform.isWindows) pkgs.buildPackages.nixfmt-rfc-style
+      ++ lib.optional (
+        !stdenv.hostPlatform.isWindows
+      ) pkgs.buildPackages.nixfmt-rfc-style
       # TODO: Remove the darwin check once
       # https://github.com/NixOS/nixpkgs/pull/291814 is available
       ++ lib.optional (stdenv.cc.isClang && !stdenv.buildPlatform.isDarwin) pkgs.buildPackages.bear

@@ -10,6 +10,40 @@
 let
   program =
     "\${workspaceFolder}/build/src/nix/nix.exe";
+  baseConfig =
+    {
+      name = "winedbg (remote)";
+      type = "cppdbg";
+      request = "launch";
+      cwd = "\${workspaceFolder}";
+      inherit program;
+
+      MIMode = "gdb";
+      miDebuggerPath = "${lib.getBin gdb}/bin/${stdenv.targetPlatform.config}-gdb";
+      miDebuggerServerAddress = "localhost:9939";
+
+      setupCommands = [
+        {
+          description = "Pretty-printing";
+          text = "-enable-pretty-printing";
+          ignoreFailures = false;
+        }
+        {
+          description = "Pretty-printing for libstdc++";
+          text = builtins.replaceStrings ["\n"] ["; "] ''
+            python sys.path.insert(0, '${lib.getLib gcc.cc}/share/gcc-${gcc.cc.version}/python')
+            from libstdcxx.v6.printers import register_libstdcxx_printers
+            register_libstdcxx_printers(None)
+          '';
+          ignoreFailures = false;
+        }
+        {
+          description = "Do not stop for SIGABRT (exceptions)";
+          text = "handle SIGABRT nostop noprint noignore";
+          ignoreFailures = false;
+        }
+      ];
+    };
   launch =
     {
       version = "0.2.0";
@@ -21,16 +55,10 @@ let
         }
       ];
       configurations = [
-        {
-          name = "winedbg";
-          type = "cppdbg";
-          request = "launch";
-          cwd = "\${workspaceFolder}";
-          inherit program;
+        baseConfig
+        (baseConfig // {
+          name = "winedbg (launch nix.exe)";
 
-          MIMode = "gdb";
-          miDebuggerPath = "${lib.getBin gdb}/bin/${stdenv.targetPlatform.config}-gdb";
-          miDebuggerServerAddress = "localhost:9939";
           debugServerPath = writeScript "nix-winedbg.sh" ''
             #!/usr/bin/env bash
             # cppdbg accepts "environment" and "envFile" but these seem
@@ -43,29 +71,7 @@ let
           # HACK: I don't know why "target remote" doesn't work.
           serverStarted = "Could not create tray window";
           filterStderr = true;
-
-          setupCommands = [
-            {
-              description = "Pretty-printing";
-              text = "-enable-pretty-printing";
-              ignoreFailures = false;
-            }
-            {
-              description = "Pretty-printing for libstdc++";
-              text = builtins.replaceStrings ["\n"] ["; "] ''
-                python sys.path.insert(0, '${lib.getLib gcc.cc}/share/gcc-${gcc.cc.version}/python')
-                from libstdcxx.v6.printers import register_libstdcxx_printers
-                register_libstdcxx_printers(None)
-              '';
-              ignoreFailures = false;
-            }
-            {
-              description = "Do not stop for SIGABRT (exceptions)";
-              text = "handle SIGABRT nostop noprint noignore";
-              ignoreFailures = false;
-            }
-          ];
-        }
+        })
       ];
     };
 in
