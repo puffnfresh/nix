@@ -54,59 +54,17 @@ AutoCloseFD openLockFile(const Path & path, bool create)
 
 bool lockFile(Descriptor desc, LockType lockType, bool wait)
 {
-    switch (lockType) {
-    case ltNone: {
-        OVERLAPPED ov = {0};
-        if (!UnlockFileEx(desc, 0, 2, 0, &ov)) {
-            WinError winError("Failed to unlock file desc %s", desc);
-            // TODO: Not sure this is correct.
-            // But I have a feeling that because we're trying to release a lock
-            // on both read AND write, when only one has been taken at a time,
-            // we get the "not locked" error. But does that mean we're not
-            // unlocking at all?
-            if (winError.lastError != ERROR_NOT_LOCKED)
-                throw winError;
-        }
-        return true;
+    const DWORD maxWord = ~DWORD(0);
+    OVERLAPPED ov = {0};
+    if (lockType == ltRead) {
+        return LockFileEx(desc, wait ? 0 : LOCKFILE_FAIL_IMMEDIATELY, 0, maxWord, maxWord, &ov);
+    } else if (lockType == ltWrite) {
+        return LockFileEx(desc, LOCKFILE_EXCLUSIVE_LOCK | wait ? 0 : LOCKFILE_FAIL_IMMEDIATELY, 0, maxWord, maxWord, &ov);
+    } else if (lockType == ltNone) {
+        return UnlockFileEx(desc, 0, maxWord, maxWord, &ov);
     }
-    case ltRead: {
-        OVERLAPPED ov = {0};
-        if (!LockFileEx(desc, wait ? 0 : LOCKFILE_FAIL_IMMEDIATELY, 0, 1, 0, &ov)) {
-            WinError winError("Failed to lock file desc %s", desc);
-            if (winError.lastError == ERROR_LOCK_VIOLATION)
-                return false;
-            throw winError;
-        }
 
-        ov.Offset = 1;
-        if (!UnlockFileEx(desc, 0, 1, 0, &ov)) {
-            WinError winError("Failed to unlock file desc %s", desc);
-            if (winError.lastError != ERROR_NOT_LOCKED)
-                throw winError;
-        }
-        return true;
-    }
-    case ltWrite: {
-        OVERLAPPED ov = {0};
-        ov.Offset = 1;
-        if (!LockFileEx(desc, LOCKFILE_EXCLUSIVE_LOCK | (wait ? 0 : LOCKFILE_FAIL_IMMEDIATELY), 0, 1, 0, &ov)) {
-            WinError winError("Failed to lock file desc %s", desc);
-            if (winError.lastError == ERROR_LOCK_VIOLATION)
-                return false;
-            throw winError;
-        }
-
-        ov.Offset = 0;
-        if (!UnlockFileEx(desc, 0, 1, 0, &ov)) {
-            WinError winError("Failed to unlock file desc %s", desc);
-            if (winError.lastError != ERROR_NOT_LOCKED)
-                throw winError;
-        }
-        return true;
-    }
-    default:
-        assert(false);
-    }
+    return true;
 }
 
 bool PathLocks::lockPaths(const PathSet & paths, const std::string & waitMsg, bool wait)
