@@ -367,7 +367,7 @@ path_opts = [
 foreach optname : path_opts
   varname = optname.replace('-', '_')
   path = get_option(optname)
-  if fs.is_absolute(path)
+  if fs.is_absolute(path) or (meson.is_cross_build() and host_machine.system() == 'windows' and path.contains(':'))
     set_variable(varname, path)
   else
     set_variable(varname, prefix / path)
