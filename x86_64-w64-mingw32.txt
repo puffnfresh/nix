@@ -1,3 +1,6 @@
+[binaries]
+exe_wrapper = 'wine64'
+
 [host_machine]
 system = 'windows'
 cpu_family = 'x86_64'
