@@ -281,8 +281,8 @@ EvalState::EvalState(
 #endif
     , staticBaseEnv{std::make_shared<StaticEnv>(nullptr, nullptr)}
 {
-    corepkgsFS->setPathDisplay("<nix/", ">");
-    internalFS->setPathDisplay("«nix-internal»/", "");
+    corepkgsFS->setPathDisplay("<nix", ">");
+    internalFS->setPathDisplay("«nix-internal»", "");
 
     countCalls = getEnv("NIX_COUNT_CALLS").value_or("0") != "0";
 

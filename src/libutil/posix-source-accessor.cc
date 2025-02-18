@@ -11,7 +11,7 @@ PosixSourceAccessor::PosixSourceAccessor(std::filesystem::path && argRoot)
     : root(std::move(argRoot))
 {
     assert(root.is_absolute());
-    displayPrefix = root.string();
+    displayPrefix = "";
 }
 
 
@@ -194,6 +194,11 @@ void PosixSourceAccessor::assertNoSymlinks(CanonPath path)
             throw Error("path '%s' is a symlink", showPath(path));
         path.pop();
     }
+}
+
+std::string PosixSourceAccessor::showPath(const CanonPath & path)
+{
+    return displayPrefix + (root / std::filesystem::path(path.rel())).make_preferred().string() + displaySuffix;
 }
 
 ref<SourceAccessor> getFSSourceAccessor()
