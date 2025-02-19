@@ -37,13 +37,18 @@ fi
 mkdir -p "$TEST_ROOT"
 mkdir "$TEST_HOME"
 
-mkdir "$NIX_STORE_DIR"
-mkdir "$NIX_LOCALSTATE_DIR"
-mkdir -p "$NIX_LOG_DIR/drvs"
-mkdir "$NIX_STATE_DIR"
-mkdir "$NIX_CONF_DIR"
+mkdir "$TEST_NIX_STORE_DIR"
+mkdir "$TEST_NIX_LOCALSTATE_DIR"
+mkdir -p "$TEST_NIX_LOG_DIR/drvs"
+mkdir "$TEST_NIX_STATE_DIR"
+mkdir "$TEST_NIX_CONF_DIR"
 
-cat > "$NIX_CONF_DIR"/nix.conf <<EOF
+trusted_users="trusted-users = $(whoami)"
+if [ "$system" = "x86_64-windows" ]; then
+  trusted_users=""
+fi
+
+cat > "$TEST_NIX_CONF_DIR"/nix.conf <<EOF
 build-users-group =
 keep-derivations = false
 sandbox = false
@@ -53,10 +58,10 @@ substituters =
 flake-registry = $TEST_ROOT/registry.json
 show-trace = true
 include nix.conf.extra
-trusted-users = $(whoami)
+$trusted_users
 EOF
 
-cat > "$NIX_CONF_DIR"/nix.conf.extra <<EOF
+cat > "$TEST_NIX_CONF_DIR"/nix.conf.extra <<EOF
 fsync-metadata = false
 extra-experimental-features = flakes
 !include nix.conf.extra.not-there
@@ -64,8 +69,9 @@ EOF
 
 # Initialise the database.
 # The flag itself does nothing, but running the command touches the store
+nix-store --init || true # Hack: Windows fails running this the first time. WHY?
 nix-store --init
 # Sanity check
-test -e "$NIX_STATE_DIR"/db/db.sqlite
+test -e "$TEST_NIX_STATE_DIR"/db/db.sqlite
 
 fi # !isTestOnNixOS
