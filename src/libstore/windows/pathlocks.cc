@@ -59,7 +59,8 @@ bool lockFile(Descriptor desc, LockType lockType, bool wait)
     if (lockType == ltRead) {
         return LockFileEx(desc, wait ? 0 : LOCKFILE_FAIL_IMMEDIATELY, 0, maxWord, maxWord, &ov);
     } else if (lockType == ltWrite) {
-        return LockFileEx(desc, LOCKFILE_EXCLUSIVE_LOCK | wait ? 0 : LOCKFILE_FAIL_IMMEDIATELY, 0, maxWord, maxWord, &ov);
+        return LockFileEx(
+            desc, LOCKFILE_EXCLUSIVE_LOCK | wait ? 0 : LOCKFILE_FAIL_IMMEDIATELY, 0, maxWord, maxWord, &ov);
     } else if (lockType == ltNone) {
         return UnlockFileEx(desc, 0, maxWord, maxWord, &ov);
     }
