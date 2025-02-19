@@ -62,11 +62,11 @@ if ! isTestOnNixOS; then
     }
 
     nix() {
-      runWine nix $@
+      runWine nix "$@"
     }
 
     nix-store() {
-      runWine nix-store $@
+      runWine nix-store "$@"
     }
   fi
 
