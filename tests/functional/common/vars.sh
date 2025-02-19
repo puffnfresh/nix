@@ -58,7 +58,7 @@ if ! isTestOnNixOS; then
     export WINEDEBUG=-all
 
     runWine() {
-      wine64 $(which "$1.exe") "${@:2}"
+      wine64 "$(which "$1.exe")" "${@:2}"
     }
 
     nix() {

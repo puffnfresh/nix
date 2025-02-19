@@ -44,7 +44,7 @@ mkdir "$TEST_NIX_STATE_DIR"
 mkdir "$TEST_NIX_CONF_DIR"
 
 trusted_users="trusted-users = $(whoami)"
-if [ "$system" = "x86_64-windows" ]; then
+if [ "${system:=}" = "x86_64-windows" ]; then
   trusted_users=""
 fi
 
