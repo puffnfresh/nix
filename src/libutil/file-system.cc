@@ -534,7 +534,13 @@ void AutoDelete::reset(const fs::path & p, bool recursive) {
 //////////////////////////////////////////////////////////////////////
 
 std::string defaultTempDir() {
+#ifndef _WIN32
     return getEnvNonEmpty("TMPDIR").value_or("/tmp");
+#else
+    // TODO: Fix the following first: 'C:\users\nixbld\Temp\tests_nix-store./db/schema':Bad file descriptor
+    // getEnvNonEmpty("TEMP")
+    return "C:\\temp";
+#endif
 }
 
 static Path tempName(Path tmpRoot, const Path & prefix, bool includePid,
