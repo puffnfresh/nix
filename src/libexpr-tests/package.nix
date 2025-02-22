@@ -63,6 +63,7 @@ mkMesonExecutable (finalAttrs: {
             ''
             + ''
               export _NIX_TEST_UNIT_DATA=${resolvePath ./data}
+              unset NIX_STORE
               ${stdenv.hostPlatform.emulator buildPackages} ${lib.getExe finalAttrs.finalPackage}
               touch $out
             ''

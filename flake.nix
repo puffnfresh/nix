@@ -271,6 +271,9 @@
                 # TODO: disabled to speed up GHA CI.
                 #"static-" = nixpkgsFor.${system}.native.pkgsStatic;
               }
+              // lib.optionalAttrs (system == "x86_64-linux") {
+                "windows-" = nixpkgsFor.${system}.cross.x86_64-w64-mingw32;
+              }
             )
             (
               nixpkgsPrefix: nixpkgs:
