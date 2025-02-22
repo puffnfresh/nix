@@ -12,13 +12,21 @@ pkgs.nixComponents.nix-util.overrideAttrs (
     stdenv = pkgs.nixDependencies.stdenv;
     buildCanExecuteHost = stdenv.buildPlatform.canExecute stdenv.hostPlatform;
     modular = devFlake.getSystem stdenv.buildPlatform.system;
+    isMesonBuiltinOption =
+      flag:
+      builtins.elem flag [
+        "datadir"
+        "localstatedir"
+        "sysconfdir"
+      ];
     transformFlag =
       prefix: flag:
       assert builtins.isString flag;
       let
         rest = builtins.substring 2 (builtins.stringLength flag) flag;
+        option = builtins.elemAt (builtins.split "=" rest) 0;
       in
-      "-D${prefix}:${rest}";
+      if isMesonBuiltinOption option then "-D${rest}" else "-D${prefix}:${rest}";
     havePerl = stdenv.buildPlatform == stdenv.hostPlatform && stdenv.hostPlatform.isUnix;
     ignoreCrossFile = flags: builtins.filter (flag: !(lib.strings.hasInfix "cross-file" flag)) flags;
   in

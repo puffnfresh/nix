@@ -76,6 +76,15 @@ mkMesonLibrary (finalAttrs: {
     ]
     ++ lib.optionals stdenv.hostPlatform.isLinux [
       (lib.mesonOption "sandbox-shell" "${busybox-sandbox-shell}/bin/busybox")
+    ]
+    ++ lib.optionals stdenv.hostPlatform.isWindows [
+      (lib.mesonOption "store-dir" "C:/nix/store")
+      (lib.mesonOption "log-dir" "C:/nix/var/log/nix")
+
+      # Meson builtin options
+      (lib.mesonOption "datadir" "C:/nix/share")
+      (lib.mesonOption "localstatedir" "C:/nix/var")
+      (lib.mesonOption "sysconfdir" "C:/nix/etc")
     ];
 
   env = {

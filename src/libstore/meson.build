@@ -337,13 +337,6 @@ fs = import('fs')
 
 prefix = get_option('prefix')
 
-if meson.is_cross_build()
-  cross_prefix = get_option('cross-prefix')
-  if cross_prefix != ''
-    prefix = cross_prefix
-  endif
-endif
-
 # For each of these paths, assume that it is relative to the prefix unless
 # it is already an absolute path (which is the default for store-dir, localstatedir, and log-dir).
 path_opts = [
@@ -358,6 +351,7 @@ path_opts = [
   'localstatedir',
   'log-dir',
 ]
+windows_cross_build = meson.is_cross_build() and host_machine.system() == 'windows'
 # For your grepping pleasure, this loop sets the following variables that aren't mentioned
 # literally above:
 # store_dir
@@ -367,7 +361,7 @@ path_opts = [
 foreach optname : path_opts
   varname = optname.replace('-', '_')
   path = get_option(optname)
-  if fs.is_absolute(path) or (meson.is_cross_build() and host_machine.system() == 'windows' and path.contains(':'))
+  if fs.is_absolute(path) or (windows_cross_build and path.contains(':'))
     set_variable(varname, path)
   else
     set_variable(varname, prefix / path)
@@ -378,7 +372,7 @@ endforeach
 # sysconfdir doesn't get anything installed to directly, and is only used to
 # tell Nix where to look for nix.conf, so it doesn't get appended to prefix.
 sysconfdir = get_option('sysconfdir')
-if not fs.is_absolute(sysconfdir) and not meson.is_cross_build()
+if not fs.is_absolute(sysconfdir) and not windows_cross_build
   sysconfdir = '/' / sysconfdir
 endif
 
