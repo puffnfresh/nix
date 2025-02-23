@@ -69,7 +69,6 @@ EOF
 
 # Initialise the database.
 # The flag itself does nothing, but running the command touches the store
-nix-store --init || true # Hack: Windows fails running this the first time. WHY?
 nix-store --init
 # Sanity check
 test -e "$TEST_NIX_STATE_DIR"/db/db.sqlite

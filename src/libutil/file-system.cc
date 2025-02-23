@@ -305,7 +305,7 @@ void writeFile(const Path & path, Source & source, mode_t mode, bool sync)
 
 void syncParent(const Path & path)
 {
-    AutoCloseFD fd = toDescriptor(open(dirOf(path).c_str(), O_RDONLY, 0));
+    AutoCloseFD fd = openDirectory(dirOf(path));
     if (!fd)
         throw SysError("opening file '%1%'", path);
     fd.fsync();
@@ -537,9 +537,7 @@ std::string defaultTempDir() {
 #ifndef _WIN32
     return getEnvNonEmpty("TMPDIR").value_or("/tmp");
 #else
-    // TODO: Fix the following first: 'C:\users\nixbld\Temp\tests_nix-store./db/schema':Bad file descriptor
-    // getEnvNonEmpty("TEMP")
-    return "C:\\temp";
+    return getEnvNonEmpty("TEMP").value_or("C:\\temp");
 #endif
 }
 
