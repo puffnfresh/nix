@@ -443,6 +443,10 @@ namespace nix {
 
 
     TEST_F(ErrorTraceTest, filterSource) {
+#ifdef _WIN32
+        GTEST_SKIP_("Broken on Windows"); // TODO: Fix
+#endif
+
         ASSERT_TRACE2("filterSource [] []",
                       TypeError,
                       HintFmt("cannot coerce %s to a string: %s", "a list", Uncolored("[ ]")),

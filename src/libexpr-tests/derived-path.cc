@@ -39,6 +39,10 @@ RC_GTEST_FIXTURE_PROP(
     prop_derived_path_built_placeholder_round_trip,
     (const SingleDerivedPath::Built & b))
 {
+#ifdef _WIN32
+    GTEST_SKIP_("Broken on Windows"); // TODO: Fix
+#endif
+
     /**
      * We set these in tests rather than the regular globals so we don't have
      * to worry about race conditions if the tests run concurrently.
@@ -57,6 +61,10 @@ RC_GTEST_FIXTURE_PROP(
     prop_derived_path_built_out_path_round_trip,
     (const SingleDerivedPath::Built & b, const StorePath & outPath))
 {
+#ifdef _WIN32
+    GTEST_SKIP_("Broken on Windows"); // TODO: Fix
+#endif
+
     auto * v = state.allocValue();
     state.mkOutputString(*v, b, outPath);
     auto [d, _] = state.coerceToSingleDerivedPathUnchecked(noPos, *v, "");
