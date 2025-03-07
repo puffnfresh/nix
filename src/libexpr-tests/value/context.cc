@@ -124,10 +124,6 @@ RC_GTEST_PROP(
     prop_round_rip,
     (const NixStringContextElem & o))
 {
-#ifdef _WIN32
-    GTEST_SKIP_("Broken on Windows"); // TODO: Fix
-#endif
-
     RC_ASSERT(o == NixStringContextElem::parse(o.to_string()));
 }
 
