@@ -41,7 +41,7 @@ AutoCloseFD openLockFile(const Path & path, bool create)
     AutoCloseFD desc = CreateFileA(
         path.c_str(),
         GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         NULL,
         create ? OPEN_ALWAYS : OPEN_EXISTING,
         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_POSIX_SEMANTICS,
