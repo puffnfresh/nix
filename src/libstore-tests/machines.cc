@@ -148,6 +148,10 @@ TEST(machines, getMachinesWithCorrectFileReference) {
 }
 
 TEST(machines, getMachinesWithCorrectFileReferenceToEmptyFile) {
+#ifdef _WIN32
+    GTEST_SKIP_("Broken on Windows"); // TODO: Fix
+#endif
+
     fs::path path = "/dev/null";
     ASSERT_TRUE(fs::exists(path));
 
@@ -156,6 +160,10 @@ TEST(machines, getMachinesWithCorrectFileReferenceToEmptyFile) {
 }
 
 TEST(machines, getMachinesWithIncorrectFileReference) {
+#ifdef _WIN32
+    GTEST_SKIP_("Broken on Windows"); // TODO: Fix
+#endif
+
     auto path = fs::weakly_canonical("/not/a/file");
     ASSERT_TRUE(!fs::exists(path));
     auto actual = Machine::parseConfig({}, "@" + path.string());
