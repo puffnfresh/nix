@@ -128,10 +128,12 @@ LocalStore::LocalStore(
     createDirs(tempRootsDir);
     createDirs(dbDir);
     Path gcRootsDir = stateDir + "/gcroots";
-    if (!pathExists(gcRootsDir)) {
-        createDirs(gcRootsDir);
-        createSymlink(profilesDir, gcRootsDir + "/profiles");
-    }
+    createDirs(gcRootsDir);
+
+    // We used to create a "profiles" symlink in gcroots.
+    // GC is hardcoded to know where the profile is anyway,
+    // so Nix doesn't do anything with this old symlink.
+    // https://github.com/NixOS/nix/issues/3060
 
     for (auto & perUserDir : {profilesDir + "/per-user", gcRootsDir + "/per-user"}) {
         createDirs(perUserDir);
