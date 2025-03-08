@@ -129,9 +129,7 @@ pkgs.nixComponents.nix-util.overrideAttrs (
         modular.pre-commit.settings.package
         (pkgs.writeScriptBin "pre-commit-hooks-install" modular.pre-commit.settings.installationScript)
       ]
-      ++ lib.optional (
-        !stdenv.hostPlatform.isWindows
-      ) pkgs.buildPackages.nixfmt-rfc-style
+      ++ lib.optional (!stdenv.hostPlatform.isWindows) pkgs.buildPackages.nixfmt-rfc-style
       # TODO: Remove the darwin check once
       # https://github.com/NixOS/nixpkgs/pull/291814 is available
       ++ lib.optional (stdenv.cc.isClang && !stdenv.buildPlatform.isDarwin) pkgs.buildPackages.bear
