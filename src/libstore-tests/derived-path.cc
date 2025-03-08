@@ -84,10 +84,6 @@ RC_GTEST_FIXTURE_PROP(
     prop_legacy_round_rip,
     (const DerivedPath & o))
 {
-#ifdef _WIN32
-    GTEST_SKIP_("Broken on Windows"); // TODO: Fix
-#endif
-
     RC_ASSERT(o == DerivedPath::parseLegacy(*store, o.to_string_legacy(*store)));
 }
 
@@ -96,10 +92,6 @@ RC_GTEST_FIXTURE_PROP(
     prop_round_rip,
     (const DerivedPath & o))
 {
-#ifdef _WIN32
-    GTEST_SKIP_("Broken on Windows"); // TODO: Fix
-#endif
-
     RC_ASSERT(o == DerivedPath::parse(*store, o.to_string(*store)));
 }
 
