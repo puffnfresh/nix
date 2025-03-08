@@ -89,7 +89,9 @@ RC_GTEST_FIXTURE_PROP(
     DISABLED_prop_legacy_round_rip,
     (const DerivedPath & o))
 {
-    RC_ASSERT(o == DerivedPath::parseLegacy(*store, o.to_string_legacy(*store)));
+    ExperimentalFeatureSettings xpSettings;
+    xpSettings.set("experimental-features", "dynamic-derivations");
+    RC_ASSERT(o == DerivedPath::parseLegacy(*store, o.to_string_legacy(*store), xpSettings));
 }
 
 RC_GTEST_FIXTURE_PROP(
@@ -97,7 +99,9 @@ RC_GTEST_FIXTURE_PROP(
     prop_round_rip,
     (const DerivedPath & o))
 {
-    RC_ASSERT(o == DerivedPath::parse(*store, o.to_string(*store)));
+    ExperimentalFeatureSettings xpSettings;
+    xpSettings.set("experimental-features", "dynamic-derivations");
+    RC_ASSERT(o == DerivedPath::parse(*store, o.to_string(*store), xpSettings));
 }
 
 #endif
