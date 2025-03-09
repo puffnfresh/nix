@@ -383,7 +383,14 @@ TEST_F(ValuePrintingTests, ansiColorsPath)
     v.mkPath(state.rootPath(CanonPath("puppy")));
 
     test(v,
-         ANSI_GREEN "/puppy" ANSI_NORMAL,
+         ANSI_GREEN
+#ifdef _WIN32
+        "C:\\"
+#else
+        "/"
+#endif
+         "puppy"
+         ANSI_NORMAL,
          PrintOptions {
              .ansiColors = true
          });
