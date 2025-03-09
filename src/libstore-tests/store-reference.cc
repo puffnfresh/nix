@@ -77,7 +77,7 @@ static StoreReference localExample_2{
     .variant =
         StoreReference::Specified{
             .scheme = "local",
-#ifndef __WIN32
+#ifndef _WIN32
             .authority = "/foo/bar/baz",
 #else
             .authority = "Z:\\foo\\bar\\baz",
@@ -91,15 +91,13 @@ static StoreReference localExample_2{
 
 URI_TEST(local_1, localExample_1)
 
-#ifndef __WIN32
+#ifndef _WIN32
 URI_TEST(local_2, localExample_2)
-#else
-URI_TEST(local_2_windows, localExample_2)
 #endif
 
 URI_TEST_READ(local_shorthand_1, localExample_1)
 
-#ifndef __WIN32
+#ifndef _WIN32
 URI_TEST_READ(local_shorthand_2, localExample_2)
 #else
 URI_TEST_READ(local_shorthand_2_windows, localExample_2)
