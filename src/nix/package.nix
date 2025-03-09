@@ -1,4 +1,5 @@
 {
+  stdenv,
   lib,
   mkMesonExecutable,
 
@@ -91,8 +92,11 @@ mkMesonExecutable (finalAttrs: {
     nix-cmd
   ];
 
-  mesonFlags = [
-  ];
+  mesonFlags =
+    [ ]
+    ++ lib.optionals stdenv.hostPlatform.isWindows [
+      (lib.mesonOption "localstatedir" "C:/nix/var")
+    ];
 
   meta = {
     mainProgram = "nix";
