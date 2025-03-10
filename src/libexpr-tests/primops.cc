@@ -86,10 +86,6 @@ namespace nix {
     }
 
     TEST_F(PrimOpTest, getEnv) {
-#ifdef _WIN32
-        GTEST_SKIP_("Broken on Windows"); // TODO: Fix
-#endif
-
         setEnv("_NIX_UNIT_TEST_ENV_VALUE", "test value");
         auto v = eval("builtins.getEnv \"_NIX_UNIT_TEST_ENV_VALUE\"");
         ASSERT_THAT(v, IsStringEq("test value"));

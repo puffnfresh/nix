@@ -7,10 +7,20 @@ namespace nix {
 
 std::optional<std::string> getEnv(const std::string & key)
 {
+#ifndef _WIN32
     char * value = getenv(key.c_str());
     if (!value)
         return {};
     return std::string(value);
+#else
+    char buffer[255] = {0};
+    DWORD resultSize = GetEnvironmentVariableA(key.c_str(), buffer, 255);
+    if (!resultSize)
+        return {};
+    std::string value = buffer;
+    value.resize(resultSize);
+    return value;
+#endif
 }
 
 std::optional<std::string> getEnvNonEmpty(const std::string & key)
