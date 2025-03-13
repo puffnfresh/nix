@@ -3,6 +3,19 @@
 
 namespace nix {
 
+    /*
+    TODO: Something around exception handling is broken when running under Wine.
+    An EndOfFile is being thrown but not caught when decompressing a compression source.
+    */
+    static bool isWine() {
+#ifndef _WIN32
+        return false;
+#else
+        HMODULE hntdll = GetModuleHandle("ntdll.dll");
+        return GetProcAddress(hntdll, "wine_get_version");
+#endif
+    }
+
     /* ----------------------------------------------------------------------------
      * compress / decompress
      * --------------------------------------------------------------------------*/
@@ -36,9 +49,7 @@ namespace nix {
     }
 
     TEST(decompress, decompressXzCompressed) {
-        #ifdef _WIN32
-        GTEST_SKIP_("Broken on Windows"); // TODO: Fix
-        #endif
+        if (isWine()) GTEST_SKIP_("Broken on Windows"); // TODO: Fix
 
         auto method = "xz";
         auto str = "slfja;sljfklsa;jfklsjfkl;sdjfkl;sadjfkl;sdjf;lsdfjsadlf";
@@ -48,9 +59,7 @@ namespace nix {
     }
 
     TEST(decompress, decompressBzip2Compressed) {
-        #ifdef _WIN32
-        GTEST_SKIP_("Broken on Windows"); // TODO: Fix
-        #endif
+        if (isWine()) GTEST_SKIP_("Broken on Windows"); // TODO: Fix
 
         auto method = "bzip2";
         auto str = "slfja;sljfklsa;jfklsjfkl;sdjfkl;sadjfkl;sdjf;lsdfjsadlf";
@@ -68,9 +77,7 @@ namespace nix {
     }
 
     TEST(decompress, decompressInvalidInputThrowsCompressionError) {
-        #ifdef _WIN32
-        GTEST_SKIP_("Broken on Windows"); // TODO: Fix
-        #endif
+        if (isWine()) GTEST_SKIP_("Broken on Windows"); // TODO: Fix
 
         auto method = "bzip2";
         auto str = "this is a string that does not qualify as valid bzip2 data";
@@ -93,9 +100,7 @@ namespace nix {
     }
 
     TEST(makeCompressionSink, compressAndDecompress) {
-        #ifdef _WIN32
-        GTEST_SKIP_("Broken on Windows"); // TODO: Fix
-        #endif
+        if (isWine()) GTEST_SKIP_("Broken on Windows"); // TODO: Fix
 
         StringSink strSink;
         auto inputString = "slfja;sljfklsa;jfklsjfkl;sdjfkl;sadjfkl;sdjf;lsdfjsadlf";
