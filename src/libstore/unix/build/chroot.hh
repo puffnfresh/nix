@@ -33,6 +33,9 @@ struct BuildChrootParams
 
     /** Callback to change ownership of a path to the build user */
     std::function<void(const std::filesystem::path &)> chownToBuilder;
+
+    /** Function to get the sandbox GID */
+    std::function<gid_t()> getSandboxGid;
 };
 
 /**

@@ -56,21 +56,6 @@ struct ChrootDerivationBuilder : virtual DerivationBuilderImpl
 
     void prepareSandbox() override
     {
-        // Set up chroot parameters
-        BuildChrootParams params{
-            .chrootParentDir = store.toRealPath(drvPath) + ".chroot",
-            .useUidRange = drvOptions.useUidRange(drv),
-            .isSandboxed = derivationType.isSandboxed(),
-            .buildUser = buildUser.get(),
-            .storeDir = store.storeDir,
-            .chownToBuilder = [this](const std::filesystem::path & path) { this->chownToBuilder(path); },
-        };
-
-        // Create the chroot
-        auto [rootDir, cleanup] = setupBuildChroot(params);
-        chrootRootDir = std::move(rootDir);
-        autoDelChroot.emplace(std::move(cleanup));
-
         // Start with the default sandbox paths
         pathsInChroot = getPathsInSandbox();
 
@@ -93,6 +78,22 @@ struct ChrootDerivationBuilder : virtual DerivationBuilderImpl
             if (i.second.second)
                 pathsInChroot.erase(store.printStorePath(*i.second.second));
         }
+
+        // Set up chroot parameters
+        BuildChrootParams params{
+            .chrootParentDir = store.toRealPath(drvPath).string() + ".chroot",
+            .useUidRange = drvOptions.useUidRange(drv),
+            .isSandboxed = derivationType.isSandboxed(),
+            .buildUser = buildUser.get(),
+            .storeDir = store.storeDir,
+            .chownToBuilder = [this](const std::filesystem::path & path) { this->chownToBuilder(path); },
+            .getSandboxGid = [this]() { return this->sandboxGid(); },
+        };
+
+        // Create the chroot
+        auto [rootDir, cleanup] = setupBuildChroot(params);
+        chrootRootDir = std::move(rootDir);
+        autoDelChroot.emplace(std::move(cleanup));
     }
 
     Strings getPreBuildHookArgs() override
@@ -112,21 +113,23 @@ struct ChrootDerivationBuilder : virtual DerivationBuilderImpl
     {
         DerivationBuilderImpl::cleanupBuild(force);
 
-        /* Move paths out of the chroot for easier debugging of
-           build failures. */
-        if (!force && buildMode == bmNormal)
-            for (auto & [_, status] : initialOutputs) {
-                if (!status.known)
-                    continue;
-                if (buildMode != bmCheck && status.known->isValid())
-                    continue;
-                std::filesystem::path p = store.toRealPath(status.known->path);
-                std::filesystem::path chrootPath = chrootRootDir / p.relative_path();
-                if (pathExists(chrootPath))
-                    std::filesystem::rename(chrootPath, p);
-            }
+        if (autoDelChroot) {
+            /* Move paths out of the chroot for easier debugging of
+               build failures. */
+            if (!force && buildMode == bmNormal)
+                for (auto & [_, status] : initialOutputs) {
+                    if (!status.known)
+                        continue;
+                    if (buildMode != bmCheck && status.known->isValid())
+                        continue;
+                    std::filesystem::path p = store.toRealPath(status.known->path);
+                    std::filesystem::path chrootPath = chrootRootDir / p.relative_path();
+                    if (pathExists(chrootPath))
+                        std::filesystem::rename(chrootPath, p);
+                }
 
-        autoDelChroot.reset(); /* this runs the destructor */
+            autoDelChroot.reset();
+        }
     }
 
     std::pair<std::filesystem::path, std::filesystem::path> addDependencyPrep(const StorePath & path)
