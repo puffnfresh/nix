@@ -324,6 +324,7 @@ SingleDrvOutputs registerOutputs(
         auto scratchPath = get(scratchOutputs, outputName);
         assert(output && scratchPath);
         auto actualPath = realPathInHost(store.printStorePath(*scratchPath));
+        auto sourcePath = PosixSourceAccessor::createAtRoot(actualPath);
 
         auto finish = [&](StorePath finalStorePath) {
             finalOutputs.insert_or_assign(outputName, finalStorePath);
@@ -418,13 +419,11 @@ SingleDrvOutputs registerOutputs(
                 case FileIngestionMethod::NixArchive: {
                     HashModuloSink caSink{outputHash.hashAlgo, oldHashPart};
                     auto fim = outputHash.method.getFileIngestionMethod();
-                    dumpPath(
-                        {getFSSourceAccessor(), CanonPath(actualPath.native())}, caSink, (FileSerialisationMethod) fim);
+                    dumpPath(sourcePath, caSink, (FileSerialisationMethod) fim);
                     return caSink.finish().hash;
                 }
                 case FileIngestionMethod::Git: {
-                    return git::dumpHash(outputHash.hashAlgo, {getFSSourceAccessor(), CanonPath(actualPath.native())})
-                        .hash;
+                    return git::dumpHash(outputHash.hashAlgo, sourcePath).hash;
                 }
                 }
                 assert(false);
@@ -440,10 +439,8 @@ SingleDrvOutputs registerOutputs(
             }
 
             {
-                HashResult narHashAndSize = hashPath(
-                    {getFSSourceAccessor(), CanonPath(actualPath.native())},
-                    FileSerialisationMethod::NixArchive,
-                    HashAlgorithm::SHA256);
+                HashResult narHashAndSize =
+                    hashPath(sourcePath, FileSerialisationMethod::NixArchive, HashAlgorithm::SHA256);
                 newInfo0.narHash = narHashAndSize.hash;
                 newInfo0.narSize = narHashAndSize.numBytesDigested;
             }
@@ -461,10 +458,8 @@ SingleDrvOutputs registerOutputs(
                         outputRewrites.insert_or_assign(
                             std::string{scratchPath->hashPart()}, std::string{requiredFinalPath.hashPart()});
                     rewriteOutput(outputRewrites);
-                    HashResult narHashAndSize = hashPath(
-                        {getFSSourceAccessor(), CanonPath(actualPath.native())},
-                        FileSerialisationMethod::NixArchive,
-                        HashAlgorithm::SHA256);
+                    HashResult narHashAndSize =
+                        hashPath(sourcePath, FileSerialisationMethod::NixArchive, HashAlgorithm::SHA256);
                     ValidPathInfo newInfo0{requiredFinalPath, {store, narHashAndSize.hash}};
                     newInfo0.narSize = narHashAndSize.numBytesDigested;
                     auto refs = rewriteRefs();
