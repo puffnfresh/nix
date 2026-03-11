@@ -14,22 +14,20 @@ namespace nix {
 
 using namespace nix::windows;
 
-void deleteLockFile(const std::filesystem::path & path, Descriptor desc)
+void deleteLockFile(const std::filesystem::path & path)
 {
-
-    int exit = DeleteFileW(path.c_str());
-    if (exit == 0)
-        warn("%s: %s", PathFmt(path), std::to_string(GetLastError()));
+    if (!DeleteFileW(path.c_str()))
+        warn("%s", WinError("deleting lock file %s", PathFmt(path)).info().msg);
 }
 
 void PathLocks::unlock()
 {
     for (auto & i : fds) {
-        if (deletePaths)
-            deleteLockFile(i.second, i.first);
-
         if (CloseHandle(i.first) == -1)
             printError("error (ignored): cannot close lock file on %1%", PathFmt(i.second));
+
+        if (deletePaths)
+            deleteLockFile(i.second);
 
         debug("lock released on %1%", PathFmt(i.second));
     }
@@ -72,8 +70,11 @@ bool lockFile(Descriptor desc, LockType lockType, bool wait)
     switch (lockType) {
     case ltNone: {
         OVERLAPPED ov = {0};
-        if (!UnlockFileEx(desc, 0, 2, 0, &ov))
-            return warnOrThrowWine(GetLastError(), "Failed to unlock file %s", PathFmt(descriptorToPath(desc)));
+        if (!UnlockFileEx(desc, 0, 2, 0, &ov)) {
+            auto lastError = GetLastError();
+            if (lastError != ERROR_NOT_LOCKED)
+                return warnOrThrowWine(lastError, "Failed to unlock file %s", PathFmt(descriptorToPath(desc)));
+        }
         return true;
     }
     case ltRead: {
