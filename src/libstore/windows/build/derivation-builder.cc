@@ -432,7 +432,7 @@ SingleDrvOutputs WindowsDerivationBuilder::registerOutputs()
             actualPath, {NIX_WHEN_SUPPORT_ACLS(settings.getLocalSettings().ignoredAcls)}, inodesSeen);
 
         auto narHashAndSize = hashPath(
-            {getFSSourceAccessor(), CanonPath(actualPath.string())},
+            {getFSSourceAccessor(), CanonPath::fromPath(actualPath)},
             FileSerialisationMethod::NixArchive,
             HashAlgorithm::SHA256);
 
