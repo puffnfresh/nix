@@ -13,6 +13,7 @@
 #include <boost/container/small_vector.hpp>
 #include <boost/unordered/concurrent_flat_map.hpp>
 #include <nlohmann/json.hpp>
+#include <cctype>
 #include <optional>
 
 namespace nix {
@@ -270,7 +271,12 @@ static BackedStringView parseString(StringViewStream & str)
 
 static void validatePath(std::string_view s)
 {
-    if (s.size() == 0 || s[0] != '/')
+    if (s.size() == 0
+        || (s[0] != '/'
+#ifdef _WIN32
+            && !(s.size() >= 3 && std::isalpha(static_cast<unsigned char>(s[0])) && s[1] == ':' && s[2] == '/')
+#endif
+                ))
         throw FormatError("bad path '%1%' in derivation", s);
 }
 

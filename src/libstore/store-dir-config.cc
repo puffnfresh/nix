@@ -4,6 +4,8 @@
 #include "nix/store/derivations.hh"
 #include "nix/store/globals.hh"
 
+#include <algorithm>
+
 namespace nix {
 
 StorePath StoreDirConfig::parseStorePath(std::string_view path) const
@@ -49,7 +51,11 @@ StorePathSet StoreDirConfig::parseStorePathSet(const StringSet & paths) const
 
 std::string StoreDirConfig::printStorePath(const StorePath & path) const
 {
-    return (storeDir + "/").append(path.to_string());
+    auto res = (storeDir + "/").append(path.to_string());
+#ifdef _WIN32
+    std::replace(res.begin(), res.end(), '\\', '/');
+#endif
+    return res;
 }
 
 StringSet StoreDirConfig::printStorePathSet(const StorePathSet & paths) const
