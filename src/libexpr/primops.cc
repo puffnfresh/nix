@@ -1934,7 +1934,7 @@ static void prim_storePath(EvalState & state, const PosIdx pos, Value ** args, V
        directly in the store.  The latter condition is necessary so
        e.g. nix-push does the right thing. */
     if (!state.store->isStorePath(path.abs()))
-        path = CanonPath(canonPath(path.abs(), true).string());
+        path = CanonPath::fromPath(canonPath(path.abs(), true));
     if (!state.store->isInStore(path.abs()))
         state.error<EvalError>("path '%1%' is not in the Nix store", path).atPos(pos).debugThrow();
     auto path2 = state.store->toStorePath(path.abs()).first;

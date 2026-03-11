@@ -1516,7 +1516,7 @@ static int main_nix_env(int argc, char ** argv)
 
         globals.instSource.nixExprPath = std::make_shared<SourcePath>(
             file != "" ? lookupFileArg(*globals.state, file)
-                       : globals.state->rootPath(CanonPath(nixExprPath.string())));
+                       : globals.state->rootPath(CanonPath::fromPath(nixExprPath)));
 
         globals.instSource.autoArgs = myArgs.getAutoArgs(*globals.state);
 

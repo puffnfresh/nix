@@ -157,7 +157,7 @@ void LocalStore::optimisePath_(
        the contents of the target (which may not even exist). */
     Hash hash = ({
         hashPath(
-            {make_ref<PosixSourceAccessor>(), CanonPath(path.string())},
+            {make_ref<PosixSourceAccessor>(), CanonPath::fromPath(path)},
             FileSerialisationMethod::NixArchive,
             HashAlgorithm::SHA256)
             .hash;

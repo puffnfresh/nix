@@ -2,6 +2,7 @@
 ///@file
 
 #include "nix/util/error.hh"
+#include <filesystem>
 #include <string>
 #include <optional>
 #include <cassert>
@@ -79,6 +80,13 @@ public:
      * must not contain any slashes and must not be `.` or `..`.
      */
     static CanonPath fromFilename(std::string_view segment);
+
+    /**
+     * Construct a CanonPath from a filesystem path. Strips the root
+     * (drive letter on Windows, `/` on Unix) and converts to forward
+     * slashes.
+     */
+    static CanonPath fromPath(const std::filesystem::path & path);
 
     /**
      * If `raw` starts with a slash, return

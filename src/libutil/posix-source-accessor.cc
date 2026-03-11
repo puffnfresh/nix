@@ -143,7 +143,7 @@ SourcePath PosixSourceAccessor::createAtRoot(const std::filesystem::path & path,
     std::filesystem::path path2 = absPath(path);
     return {
         make_ref<PosixSourceAccessor>(path2.root_path(), trackLastModified),
-        CanonPath{path2.relative_path().string()},
+        CanonPath::fromPath(path2),
     };
 }
 

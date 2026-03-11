@@ -99,7 +99,7 @@ static std::shared_ptr<Registry> getSystemRegistry(const Settings & settings)
 {
     static auto systemRegistry = Registry::read(
         settings,
-        SourcePath{getFSSourceAccessor(), CanonPath{getSystemRegistryPath().string()}}.resolveSymlinks(),
+        SourcePath{getFSSourceAccessor(), CanonPath::fromPath(getSystemRegistryPath())}.resolveSymlinks(),
         Registry::System);
     return systemRegistry;
 }
@@ -113,7 +113,7 @@ std::shared_ptr<Registry> getUserRegistry(const Settings & settings)
 {
     static auto userRegistry = Registry::read(
         settings,
-        SourcePath{getFSSourceAccessor(), CanonPath{getUserRegistryPath().string()}}.resolveSymlinks(),
+        SourcePath{getFSSourceAccessor(), CanonPath::fromPath(getUserRegistryPath())}.resolveSymlinks(),
         Registry::User);
     return userRegistry;
 }
@@ -121,7 +121,7 @@ std::shared_ptr<Registry> getUserRegistry(const Settings & settings)
 std::shared_ptr<Registry> getCustomRegistry(const Settings & settings, const std::filesystem::path & p)
 {
     static auto customRegistry = Registry::read(
-        settings, SourcePath{getFSSourceAccessor(), CanonPath{p.string()}}.resolveSymlinks(), Registry::Custom);
+        settings, SourcePath{getFSSourceAccessor(), CanonPath::fromPath(p)}.resolveSymlinks(), Registry::Custom);
     return customRegistry;
 }
 
@@ -154,7 +154,7 @@ static std::shared_ptr<Registry> getGlobalRegistry(const Settings & settings, St
                         store2->addPermRoot(storePath, (getCacheDir() / "flake-registry.json").string());
                     return {store.requireStoreObjectAccessor(storePath)};
                 } else {
-                    return SourcePath{getFSSourceAccessor(), CanonPath{fsPath.string()}}.resolveSymlinks();
+                    return SourcePath{getFSSourceAccessor(), CanonPath::fromPath(fsPath)}.resolveSymlinks();
                 }
             }(),
             Registry::Global);

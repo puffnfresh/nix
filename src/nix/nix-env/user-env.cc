@@ -24,7 +24,7 @@ PackageInfos queryInstalled(EvalState & state, const std::filesystem::path & use
     auto manifestFile = userEnv / "manifest.nix";
     if (pathExists(manifestFile)) {
         Value v;
-        state.evalFile(state.rootPath(CanonPath(manifestFile.string())).resolveSymlinks(), v);
+        state.evalFile(state.rootPath(CanonPath::fromPath(manifestFile)).resolveSymlinks(), v);
         Bindings & bindings = Bindings::emptyBindings;
         getDerivations(state, v, "", bindings, elems, false);
     }

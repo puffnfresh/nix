@@ -44,6 +44,11 @@ CanonPath::CanonPath(const char * raw)
 {
 }
 
+CanonPath CanonPath::fromPath(const std::filesystem::path & path)
+{
+    return CanonPath(std::string_view(path.relative_path().generic_string()));
+}
+
 CanonPath::CanonPath(std::string_view raw, const CanonPath & root)
     : path(absPathPure(raw.size() > 0 && raw[0] == '/' ? raw : concatStrings(root.abs(), "/", raw)))
 {

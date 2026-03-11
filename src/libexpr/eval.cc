@@ -436,7 +436,7 @@ void EvalState::checkURI(const std::string & uri0)
         std::filesystem::path path(uri0);
         if (path.is_absolute()) {
             if (auto rootFS2 = rootFS.dynamic_pointer_cast<AllowListSourceAccessor>())
-                rootFS2->checkAccess(CanonPath(path.string()));
+                rootFS2->checkAccess(CanonPath::fromPath(path));
             return;
         }
     }
@@ -445,7 +445,7 @@ void EvalState::checkURI(const std::string & uri0)
         ParsedURL uri = parseURL(uri0);
         if (uri.scheme == "file") {
             if (auto rootFS2 = rootFS.dynamic_pointer_cast<AllowListSourceAccessor>())
-                rootFS2->checkAccess(CanonPath(urlPathToPath(uri.path).string()));
+                rootFS2->checkAccess(CanonPath::fromPath(urlPathToPath(uri.path)));
             return;
         }
     } catch (BadURL &) {
