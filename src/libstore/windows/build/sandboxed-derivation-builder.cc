@@ -1,3 +1,4 @@
+#include "bindflt-api.hh"
 #include "build/derivation-builder-common.hh"
 #include "nix/store/build/derivation-builder.hh"
 #include "nix/store/local-store.hh"
@@ -22,10 +23,14 @@
 namespace nix {
 
 /**
- * Windows derivation builder, based on volth's work in
- * https://github.com/nix-windows/nix/tree/windows
+ * Windows sandboxed derivation builder using the BindFlt mini-filter driver.
+ *
+ * Structurally similar to WindowsDerivationBuilder but adds filesystem
+ * sandboxing via BfSetupFilter: the entire Nix store is hidden behind
+ * an empty directory, then only declared input paths (read-only) and
+ * output paths (read-write) are overlaid on top.
  */
-class WindowsDerivationBuilder : public DerivationBuilder, public DerivationBuilderParams
+class WindowsSandboxedDerivationBuilder : public DerivationBuilder, public DerivationBuilderParams
 {
     LocalStore & store;
     std::unique_ptr<DerivationBuilderCallbacks> miscMethods;
@@ -39,55 +44,32 @@ class WindowsDerivationBuilder : public DerivationBuilder, public DerivationBuil
     RedirectedOutputs redirectedOutputs;
     OutputPathMap scratchOutputs;
 
-    /**
-     * The temporary directory used for the build.
-     */
     std::filesystem::path tmpDir;
-
-    /**
-     * The original temp dir path before drive substitution.
-     */
     std::filesystem::path tmpDirOrig;
-
-    /**
-     * The drive letter used for substitution (empty if none).
-     */
     std::string substitutedDrive;
 
-    /**
-     * The process.
-     */
     Pid pid;
-
-    /**
-     * Whether we have a child process running.
-     */
     bool childStarted = false;
 
-    /**
-     * Async pipe for builder stdout/stderr, used with IOCP.
-     */
     windows::AsyncPipe asyncBuilderOut;
-
-    /**
-     * Handle to NUL device for stdin.
-     */
     AutoCloseFD nulHandle;
-
-    /**
-     * Job object to kill child on parent death.
-     */
     AutoCloseFD jobObject;
 
-    /**
-     * The I/O Completion Port handle from the Worker, needed for
-     * creating async pipes on Windows.
-     */
     Descriptor ioCompletionPort;
+
+    /**
+     * Empty directory used as the backing path to hide the store.
+     */
+    std::filesystem::path emptyStoreDir;
+
+    /**
+     * Virtual paths we mapped, so we can remove them during cleanup.
+     */
+    std::vector<std::wstring> sandboxMappings;
 
 public:
 
-    WindowsDerivationBuilder(
+    WindowsSandboxedDerivationBuilder(
         LocalStore & store,
         std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
         DerivationBuilderParams params,
@@ -128,16 +110,120 @@ public:
 
 private:
 
+    void setupSandboxMappings();
+    void removeSandboxMappings();
     void cleanupBuild(bool force);
     SingleDrvOutputs registerOutputs();
 
     void addDependencyImpl(const StorePath & path) override
     {
         addedPaths.insert(path);
+
+        /* Unlike Linux (which needs setns() to enter the mount namespace),
+           BindFlt allows adding new mappings to an existing job object at
+           any time from the parent process. */
+        auto & api = BindFltApi::instance();
+        if (api && jobObject) {
+            auto storePath = store.printStorePath(path);
+            auto realPath = store.toRealPath(path);
+            auto wVirtual = string_to_os_string(storePath);
+            auto wBacking = string_to_os_string(realPath.string());
+
+            HRESULT hr = api->setupFilter(
+                jobObject.get(),
+                BINDFLT_FLAG_READ_ONLY_MAPPING | BINDFLT_FLAG_MERGED_BIND_MAPPING | BINDFLT_FLAG_IMMUTABLE_BACKING,
+                wVirtual,
+                wBacking);
+
+            if (FAILED(hr))
+                warn("BindFlt: failed to add dynamic dependency '%s' (HRESULT 0x%08x)", storePath, hr);
+            else
+                sandboxMappings.push_back(wVirtual);
+        }
     }
 };
 
-std::optional<Descriptor> WindowsDerivationBuilder::startBuild()
+void WindowsSandboxedDerivationBuilder::setupSandboxMappings()
+{
+    auto & api = *BindFltApi::instance();
+
+    auto buildDir = store.config->getBuildDir();
+    emptyStoreDir = createTempDir(buildDir, "nix-sandbox-empty-");
+
+    /* 1. Map the store directory to an empty dir (hides all store paths). */
+    auto wStoreDir = string_to_os_string(store.storeDir);
+    auto wEmptyDir = string_to_os_string(emptyStoreDir.string());
+
+    HRESULT hr = api.setupFilter(jobObject.get(), BINDFLT_FLAG_READ_ONLY_MAPPING, wStoreDir, wEmptyDir);
+
+    if (FAILED(hr))
+        throw BuildError(
+            BuildResult::Failure::PermanentFailure,
+            "BindFlt: failed to hide store directory '%s' (HRESULT 0x%08x)",
+            store.storeDir,
+            hr);
+
+    sandboxMappings.push_back(wStoreDir);
+
+    /* 2. Overlay declared input paths (read-only). */
+    for (auto & inputPath : originalPaths()) {
+        auto storePath = store.printStorePath(inputPath);
+        auto realPath = store.toRealPath(inputPath);
+        auto wVirtual = string_to_os_string(storePath);
+        auto wBacking = string_to_os_string(realPath.string());
+
+        hr = api.setupFilter(
+            jobObject.get(),
+            BINDFLT_FLAG_READ_ONLY_MAPPING | BINDFLT_FLAG_MERGED_BIND_MAPPING | BINDFLT_FLAG_IMMUTABLE_BACKING,
+            wVirtual,
+            wBacking);
+
+        if (FAILED(hr))
+            throw BuildError(
+                BuildResult::Failure::PermanentFailure,
+                "BindFlt: failed to map input '%s' (HRESULT 0x%08x)",
+                storePath,
+                hr);
+
+        sandboxMappings.push_back(wVirtual);
+    }
+
+    /* 3. Overlay scratch output paths (read-write). */
+    for (auto & [outputName, scratchPath] : scratchOutputs) {
+        auto storePath = store.printStorePath(scratchPath);
+        auto realPath = store.toRealPath(scratchPath);
+        auto wVirtual = string_to_os_string(storePath);
+        auto wBacking = string_to_os_string(realPath.string());
+
+        hr = api.setupFilter(jobObject.get(), BINDFLT_FLAG_MERGED_BIND_MAPPING, wVirtual, wBacking);
+
+        if (FAILED(hr))
+            throw BuildError(
+                BuildResult::Failure::PermanentFailure,
+                "BindFlt: failed to map output '%s' (HRESULT 0x%08x)",
+                storePath,
+                hr);
+
+        sandboxMappings.push_back(wVirtual);
+    }
+}
+
+void WindowsSandboxedDerivationBuilder::removeSandboxMappings()
+{
+    auto & api = BindFltApi::instance();
+    if (!api)
+        return;
+
+    /* Remove in reverse order. */
+    for (auto it = sandboxMappings.rbegin(); it != sandboxMappings.rend(); ++it) {
+        HRESULT hr = api->removeMapping(jobObject.get(), *it);
+        if (FAILED(hr))
+            debug("BindFlt: failed to remove mapping (HRESULT 0x%08x)", hr);
+    }
+    sandboxMappings.clear();
+}
+
+std::optional<Descriptor> WindowsSandboxedDerivationBuilder::startBuild()
 {
     auto buildDir = store.config->getBuildDir();
     createDirs(buildDir);
@@ -162,7 +248,6 @@ std::optional<Descriptor> WindowsDerivationBuilder::startBuild()
                 substitutedDrive = drivePath;
                 if (!CreateDirectoryW(string_to_os_string(shortPath).c_str(), NULL)) {
                     auto err = GetLastError();
-                    /* Undo the drive mapping if we can't create the dir. */
                     DefineDosDeviceW(
                         DDD_NO_BROADCAST_SYSTEM | DDD_REMOVE_DEFINITION | DDD_EXACT_MATCH_ON_REMOVE,
                         wDrive.c_str(),
@@ -341,6 +426,16 @@ std::optional<Descriptor> WindowsDerivationBuilder::startBuild()
         throw windows::WinError("AssignProcessToJobObject");
     }
 
+    /* Set up sandbox mappings after assigning to job object but before resuming. */
+    try {
+        setupSandboxMappings();
+    } catch (...) {
+        TerminateProcess(pi.hProcess, 1);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        throw;
+    }
+
     if (!ResumeThread(pi.hThread)) {
         TerminateProcess(pi.hProcess, 1);
         CloseHandle(pi.hProcess);
@@ -355,15 +450,12 @@ std::optional<Descriptor> WindowsDerivationBuilder::startBuild()
     pid = Pid{AutoCloseFD{pi.hProcess}};
     childStarted = true;
 
-    /* Set builderOut to reference the async pipe read handle so the
-       goal code can match ChildOutput events. This is a non-owning
-       alias — asyncBuilderOut owns the actual handle. */
     builderOut = AutoCloseFD{asyncBuilderOut.readSide.get()};
 
     return builderOut.get();
 }
 
-bool WindowsDerivationBuilder::killChild()
+bool WindowsSandboxedDerivationBuilder::killChild()
 {
     if (!childStarted)
         return false;
@@ -373,7 +465,7 @@ bool WindowsDerivationBuilder::killChild()
     return true;
 }
 
-SingleDrvOutputs WindowsDerivationBuilder::unprepareBuild()
+SingleDrvOutputs WindowsSandboxedDerivationBuilder::unprepareBuild()
 {
     /* builderOut is a non-owning alias of asyncBuilderOut.readSide;
        release it so the close() inside commonUnprepare is a no-op. */
@@ -385,13 +477,18 @@ SingleDrvOutputs WindowsDerivationBuilder::unprepareBuild()
     asyncBuilderOut.close();
     nulHandle.close();
 
+    /* Remove sandbox mappings before accessing outputs — the builder
+       is dead, and we need unrestricted access to the output paths. */
+    removeSandboxMappings();
+
     debug("builder for '%s' terminated with status %d", store.printStorePath(drvPath), status);
 
     if (status != 0) {
         cleanupBuild(false);
 
+        /* Sandboxed build failures are PermanentFailure (matching Linux chroot). */
         throw BuilderFailureError{
-            BuildResult::Failure::TransientFailure,
+            BuildResult::Failure::PermanentFailure,
             status,
             "",
         };
@@ -404,14 +501,9 @@ SingleDrvOutputs WindowsDerivationBuilder::unprepareBuild()
     return builtOutputs;
 }
 
-/* TODO: this is a simplified version of registerOutputs() from
-   unix/build/derivation-builder-common.cc. It is missing reference
-   scanning, output hash rewriting, fixed-output hash verification,
-   CA derivation support, and multi-round determinism checks. These
-   will need to be ported as Windows support matures, ideally by
-   moving the common registerOutputs() to a platform-independent
-   location. */
-SingleDrvOutputs WindowsDerivationBuilder::registerOutputs()
+/* Simplified registerOutputs for sandboxed Windows builder.
+   TODO: port the full version with reference scanning, hash rewriting, etc. */
+SingleDrvOutputs WindowsSandboxedDerivationBuilder::registerOutputs()
 {
     InodesSeen inodesSeen;
     std::map<std::string, ValidPathInfo> infos;
@@ -421,13 +513,12 @@ SingleDrvOutputs WindowsDerivationBuilder::registerOutputs()
 
         if (!pathExists(actualPath))
             throw BuildError(
-                BuildResult::Failure::TransientFailure,
+                BuildResult::Failure::PermanentFailure,
                 "builder for '%s' failed to produce output path for output '%s' at '%s'",
                 store.printStorePath(drvPath),
                 outputName,
                 actualPath.string());
 
-        /* Canonicalise permissions. On Windows we don't have build users. */
         canonicalisePathMetaData(
             actualPath, {NIX_WHEN_SUPPORT_ACLS(settings.getLocalSettings().ignoredAcls)}, inodesSeen);
 
@@ -484,8 +575,10 @@ SingleDrvOutputs WindowsDerivationBuilder::registerOutputs()
     return builtOutputs;
 }
 
-void WindowsDerivationBuilder::cleanupBuild(bool force)
+void WindowsSandboxedDerivationBuilder::cleanupBuild(bool force)
 {
+    removeSandboxMappings();
+
     /* Remove drive substitution before deleting the directory. */
     if (!substitutedDrive.empty()) {
         std::wstring wDrive = string_to_os_string(substitutedDrive);
@@ -499,65 +592,22 @@ void WindowsDerivationBuilder::cleanupBuild(bool force)
         substitutedDrive.clear();
     }
 
+    if (!emptyStoreDir.empty()) {
+        deletePath(emptyStoreDir);
+        emptyStoreDir.clear();
+    }
+
     nix::cleanupBuildCore(force, store, redirectedOutputs, drv, tmpDirOrig, tmpDir);
-}
-
-void DerivationBuilderDeleter::operator()(DerivationBuilder * builder) noexcept
-{
-    if (!builder)
-        return;
-
-    builder->cleanupOnDestruction();
-
-    delete builder;
 }
 
 DerivationBuilderUnique makeWindowsSandboxedDerivationBuilder(
     LocalStore & store,
     std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
     DerivationBuilderParams params,
-    Descriptor ioCompletionPort);
-
-DerivationBuilderUnique makeDerivationBuilder(
-    LocalStore & store,
-    std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
-    DerivationBuilderParams params,
     Descriptor ioCompletionPort)
 {
-    bool useSandbox = false;
-    const LocalSettings & localSettings = store.config->getLocalSettings();
-
-    if (localSettings.sandboxMode == smEnabled) {
-        if (params.drvOptions.noChroot)
-            throw Error(
-                "derivation '%s' has '__noChroot' set, "
-                "but that's not allowed when 'sandbox' is 'true'",
-                store.printStorePath(params.drvPath));
-        useSandbox = true;
-    } else if (localSettings.sandboxMode == smDisabled)
-        useSandbox = false;
-    else if (localSettings.sandboxMode == smRelaxed)
-        useSandbox = params.drv.type().isSandboxed() && !params.drvOptions.noChroot;
-
-    if (useSandbox) {
-        /* Check BindFlt availability before consuming moved params. */
-        // TODO: check BindFltApi::instance() when sandboxed builder is enabled
-        warn("sandboxing requested but BindFlt sandboxed builder is not yet linked; falling back to unsandboxed build");
-        useSandbox = false;
-    }
-
     return DerivationBuilderUnique(
-        new WindowsDerivationBuilder(store, std::move(miscMethods), std::move(params), ioCompletionPort));
-}
-
-DerivationBuilderUnique makeExternalDerivationBuilder(
-    LocalStore & store,
-    std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
-    DerivationBuilderParams params,
-    const ExternalBuilder & handler,
-    Descriptor)
-{
-    throw Error("external builders are not supported on Windows");
+        new WindowsSandboxedDerivationBuilder(store, std::move(miscMethods), std::move(params), ioCompletionPort));
 }
 
 } // namespace nix

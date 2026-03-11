@@ -166,7 +166,7 @@ bool statusOk(int status);
 /**
  * Escape a string for use as a Windows command-line argument.
  */
-std::string windowsEscape(const std::string & str, bool cmd = false);
+OsString windowsEscape(const OsString & str, bool cmd = false);
 #endif
 
 } // namespace nix

@@ -12,6 +12,6 @@ DerivationBuilderUnique makeExternalDerivationBuilder(
     std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
     DerivationBuilderParams params,
     const ExternalBuilder & handler,
-    Descriptor ioCompletionPort = INVALID_DESCRIPTOR);
+    Descriptor ioCompletionPort);
 
 } // namespace nix

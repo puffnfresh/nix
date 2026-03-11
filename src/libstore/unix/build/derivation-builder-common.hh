@@ -1,5 +1,6 @@
 #pragma once
 
+#include "build/derivation-builder-common.hh"
 #include "nix/store/build/derivation-builder.hh"
 #include "nix/store/local-settings.hh"
 
@@ -100,13 +101,6 @@ StringMap initEnv(
     int tmpDirFd);
 
 /**
- * Compute scratch output paths and set up hash rewrites for each output.
- * Returns {scratchOutputs, inputRewrites, redirectedOutputs}.
- */
-std::tuple<OutputPathMap, StringMap, std::map<StorePath, StorePath>>
-computeScratchOutputs(LocalStore & store, const DerivationBuilderParams & params, bool needsHashRewrite);
-
-/**
  * Manages the recursive Nix daemon socket, accept thread, and worker
  * threads used by all derivation builder implementations.
  */
@@ -132,11 +126,6 @@ struct RecursiveNixDaemon
  * Waits for the "\2" ready signal, handles "\1" error reports.
  */
 void processSandboxSetupMessages(AutoCloseFD & builderOut, Pid & pid, const Store & store, const StorePath & drvPath);
-
-/**
- * Log chatty builder info (builder path, args, env vars).
- */
-void logBuilderInfo(const BasicDerivation & drv);
 
 /**
  * Set up the PTY master. On platforms where grantpt is needed when there
@@ -190,33 +179,9 @@ void dropPrivileges(UserLock & buildUser);
 bool isDiskFull(LocalStore & store, const std::filesystem::path & tmpDir);
 
 /**
- * Common first part of `unprepareBuild()`: kill the child, log,
- * update build result, close log file. Returns the exit status.
- */
-int commonUnprepare(
-    Pid & pid,
-    const Store & store,
-    const StorePath & drvPath,
-    BuildResult & buildResult,
-    DerivationBuilderCallbacks & miscMethods,
-    AutoCloseFD & builderOut);
-
-/**
  * Log CPU usage stats if available.
  */
 void logCpuUsage(const Store & store, const StorePath & drvPath, const BuildResult & buildResult, int status);
-
-/**
- * Common core of `cleanupBuild()`: delete redirected outputs if forced,
- * handle keepFailed, clean up tmpDir.
- */
-void cleanupBuildCore(
-    bool force,
-    LocalStore & store,
-    const std::map<StorePath, StorePath> & redirectedOutputs,
-    const BasicDerivation & drv,
-    std::filesystem::path & topTmpDir,
-    std::filesystem::path & tmpDir);
 
 /**
  * Validate impure host dependencies against allowed prefixes and add
