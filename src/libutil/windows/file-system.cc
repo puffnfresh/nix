@@ -195,4 +195,41 @@ std::optional<PosixStat> maybeLstat(const std::filesystem::path & path)
     return statFromFileInfo(attrData);
 }
 
+void createSymlink(const std::filesystem::path & target, const std::filesystem::path & link)
+{
+    DWORD flags = 0;
+    if (std::filesystem::is_directory(target))
+        flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
+    if (!CreateSymbolicLinkW(link.c_str(), target.c_str(), flags))
+        throw WinError("creating symlink %s -> %s", PathFmt(link), PathFmt(target));
+}
+
+void replaceSymlink(const std::filesystem::path & target, const std::filesystem::path & link)
+{
+    for (unsigned int n = 0; true; n++) {
+        auto tmp = link.parent_path() / std::filesystem::path{fmt(".%d_%s", n, link.filename().string())};
+        tmp = tmp.lexically_normal();
+
+        DWORD flags = 0;
+        if (std::filesystem::is_directory(target))
+            flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
+        if (!CreateSymbolicLinkW(tmp.c_str(), target.c_str(), flags)) {
+            auto lastError = GetLastError();
+            if (lastError == ERROR_ALREADY_EXISTS)
+                continue;
+            throw WinError(lastError, "creating symlink %s -> %s", PathFmt(tmp), PathFmt(target));
+        }
+
+        try {
+            std::filesystem::rename(tmp, link);
+        } catch (std::filesystem::filesystem_error & e) {
+            if (e.code() == std::errc::file_exists)
+                continue;
+            throw SystemError(e.code(), "renaming %1% to %2%", PathFmt(tmp), PathFmt(link));
+        }
+
+        break;
+    }
+}
+
 } // namespace nix

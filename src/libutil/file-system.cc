@@ -540,6 +540,7 @@ std::filesystem::path makeTempPath(const std::filesystem::path & root, const std
     return tmpRoot / fmt("%s-%s-%s", suffix, getpid(), counter.fetch_add(1, std::memory_order_relaxed));
 }
 
+#ifndef _WIN32
 void createSymlink(const std::filesystem::path & target, const std::filesystem::path & link)
 {
     std::error_code ec;
@@ -573,6 +574,7 @@ void replaceSymlink(const std::filesystem::path & target, const std::filesystem:
         break;
     }
 }
+#endif
 
 void setWriteTime(const std::filesystem::path & path, const PosixStat & st)
 {
