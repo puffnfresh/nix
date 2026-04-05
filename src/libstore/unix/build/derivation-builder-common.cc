@@ -643,8 +643,7 @@ void chownToBuilder(UserLock * buildUser, const std::filesystem::path & path)
 {
     if (!buildUser)
         return;
-    if (chown(path.c_str(), buildUser->getUID(), buildUser->getGID()) == -1)
-        throw SysError("cannot change ownership of %1%", PathFmt(path));
+    chown(path, buildUser->getUID(), buildUser->getGID());
 }
 
 void chownToBuilder(UserLock * buildUser, int fd, const std::filesystem::path & path)
@@ -909,8 +908,7 @@ void setupPTYMaster(AutoCloseFD & builderOut, UserLock * buildUser, bool grantOn
     if (buildUser) {
         chmod(slaveName, 0600);
 
-        if (chown(slaveName.c_str(), buildUser->getUID(), 0))
-            throw SysError("changing owner of pseudoterminal slave");
+        chown(slaveName, buildUser->getUID(), 0);
     } else if (grantOnNoBuildUser) {
         if (grantpt(builderOut.get()))
             throw SysError("granting access to pseudoterminal slave");

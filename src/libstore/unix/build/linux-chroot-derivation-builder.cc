@@ -752,7 +752,7 @@ struct LinuxChrootDerivationBuilder : DerivationBuilder, DerivationBuilderParams
                     "nobody:x:65534:65534:Nobody:/:/noshell\n",
                     sandboxUid(),
                     sandboxGid(),
-                    store.config->getLocalSettings().sandboxBuildDir));
+                    store.config->getLocalSettings().sandboxBuildDir.get().native()));
 
             auto sandboxPath = thisProcPath / "ns";
             sandboxMountNamespace = open((sandboxPath / "mnt").c_str(), O_RDONLY);
